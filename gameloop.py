@@ -11,12 +11,13 @@ class Game: #wrap the main functionality of the game as a class
         pygame.display.set_caption('Psychic Detective') #names the game window
 
         self.screen = pygame.display.set_mode((1080,720)) #set display to tuple resolution
-        self.display = pygame.Surface((540, 360))
+        self.display = pygame.Surface((540, 360)) #this can be used later to scale the size of the objects in the game
 
         self.clock = pygame.time.Clock()
 
         self.movement = [False, False]
 
+        #these assets are placeholders for what will come later
         self.assets = {
             'decor': load_images('tiles/decor'),
             'grass': load_images('tiles/grass'),
@@ -49,7 +50,7 @@ class Game: #wrap the main functionality of the game as a class
                     if event.key == pygame.K_RIGHT:
                         self.movement[1] = False
 
-            self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()),(0, 0))
+            self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()),(0, 0)) #scales the size of the objects from the smaller display to the full screen
             pygame.display.update() #update the screen each loop
             self.clock.tick(60) #tick clock forward. set to 60 FPS 
 
