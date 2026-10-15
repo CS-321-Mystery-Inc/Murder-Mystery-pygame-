@@ -1,6 +1,7 @@
 
 import sqlite3
 
+# we all get our own local copy of game.db so the gitignore has game.db so we don't push our version
 DB_NAME = "game.db"
 
 def initialize_database():
