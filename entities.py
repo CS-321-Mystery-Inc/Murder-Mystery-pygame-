@@ -1,7 +1,8 @@
 import math
 import random
-
+from scripts.tilemap import Tilemap
 import pygame
+from scripts.utils import load_image
 
 class PhysicsEntity:
     def __init__(self, game, e_type, pos, size, form):
@@ -63,8 +64,11 @@ class PhysicsEntity:
                     entity_rect.top = rect.bottom
                     self.collisions['up'] = True
                 self.pos[1] = entity_rect.y
-        
-        self.velocity[1] = min(5, self.velocity[1] + 0.1) #this handles gravity to generally make the character "fall"
+
+        if(self.form == 'corporeal'):
+            self.velocity[1] = min(10, self.velocity[1] + 0.2) #this handles gravity to generally make the character "fall"
+        else:
+            self.velocity[1] = min(5, self.velocity[1] + 0.2) #slower fall speed for the astral form
         
         if self.collisions['down'] or self.collisions['up']: #this resets the slow initial fall speed so you don't reach terminal velocity immediately after falling
             self.velocity[1] = 0
@@ -76,16 +80,20 @@ class PhysicsEntity:
 
     def jump(self):
         if self.jumps > 0:
-            self.velocity[1] = -3
+            self.velocity[1] = -8
             self.jumps -= 1
         return True
         
     def render(self, surf, offset=(0,0)): #render the entity onto the screen
         #surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
-        surf.blit(pygame.transform.flip(self.game.assets['player'], self.flip, False), self.pos)
+        if self.form == 'corporeal':
+            player_img = self.game.assets['corporeal_player']
+        else:
+            player_img = self.game.assets['astral_player']
+        surf.blit(pygame.transform.flip(player_img, self.flip, False), (self.pos[0] - offset[0], self.pos[1] - offset[1]))
 
-    def dash(self, current_time):
-        DASH_DISTANCE = self.size[0] + 16
+    def dash(self, current_time, tilemap):
+        DASH_DISTANCE = self.size[0] + tilemap.tile_size
         DASH_COOLDOWN = 1000
 
         if (current_time - self.last_dash_time >= DASH_COOLDOWN) and self.form == 'astral':
@@ -94,8 +102,9 @@ class PhysicsEntity:
             else:
                 self.pos[0] += DASH_DISTANCE
             self.last_dash_time = current_time
+            return True
         else:
-            return
+            return False
 
     def swap_form(self):
         if self.form == 'corporeal':
