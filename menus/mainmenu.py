@@ -4,8 +4,8 @@ import button
 pygame.init()
 
 #create game window
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 960
+SCREEN_HEIGHT = 540
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Psychic Detective")
@@ -22,22 +22,19 @@ TEXT_COL = (255, 255, 255)
 
 #load button images
 title_img = pygame.image.load("images/title.png").convert_alpha()
-resume_img = pygame.image.load("images/button_resume.png").convert_alpha()
-options_img = pygame.image.load("images/button_options.png").convert_alpha()
-quit_img = pygame.image.load("images/button_quit.png").convert_alpha()
-#video_img = pygame.image.load('images/button_video.png').convert_alpha()
-#audio_img = pygame.image.load('images/button_audio.png').convert_alpha()
-#keys_img = pygame.image.load('images/button_keys.png').convert_alpha()
-back_img = pygame.image.load('images/button_back.png').convert_alpha()
+resume_img = pygame.image.load("images/resume.png").convert_alpha()
+options_img = pygame.image.load("images/options.png").convert_alpha()
+quit_img = pygame.image.load("images/quit.png").convert_alpha()
+back_img = pygame.image.load('images/back.png').convert_alpha()
+notebook_img = pygame.image.load('images/notebook.png').convert_alpha()
+newgame_img = pygame.image.load('images/newgame.png').convert_alpha()
 
 #create button instances
-resume_button = button.Button(304, 125, resume_img, 1)
-options_button = button.Button(297, 250, options_img, 1)
-quit_button = button.Button(336, 375, quit_img, 1)
-#video_button = button.Button(226, 75, video_img, 1)
-#audio_button = button.Button(225, 200, audio_img, 1)
-#keys_button = button.Button(246, 325, keys_img, 1)
-back_button = button.Button(332, 450, back_img, 1)
+resume_button = button.Button(0, 0, resume_img, 1)
+options_button = button.Button(0, 0, options_img, 1)
+quit_button = button.Button(0, 0, quit_img, 1)
+back_button = button.Button(0, 0, back_img, 1)
+notebook_button = button.Button(0, 0, notebook_img, 1)
 
 # def draw_text(text, font, text_col, x, y):
 #   img = font.render(text, True, text_col)
@@ -59,27 +56,28 @@ while run:
       if options_button.draw(screen):
         menu_state = "options"
       if quit_button.draw(screen):
+        print("quit button pressed")
         run = False
     #check if the options menu is open
     if menu_state == "options":
       #draw the different options buttons
-    #   if video_button.draw(screen):
-    #     print("Video Settings")
-    #   if audio_button.draw(screen):
-    #     print("Audio Settings")
-    #   if keys_button.draw(screen):
-    #     print("Change Key Bindings")
       if back_button.draw(screen):
         menu_state = "main"
+      if notebook_button.draw(screen):
+        print("Notebook") #to be changed when notebook is implemented
   else:
-    screen.blit(title_img, (-185,-425))
+    screen.blit(title_img, (-100,-450))
+    # resume_button.draw(screen)
+    screen.blit(resume_img, (-100,-250))
+    screen.blit(newgame_img, (-100,-150))
 
   #event handler
   for event in pygame.event.get():
     if event.type == pygame.KEYDOWN:
-      if event.key == pygame.K_SPACE:
+      if event.key == pygame.K_ESCAPE:
         game_paused = True
     if event.type == pygame.QUIT:
+      print("window closed")
       run = False
 
   pygame.display.update()
