@@ -30,11 +30,11 @@ notebook_img = pygame.image.load('images/notebook.png').convert_alpha()
 newgame_img = pygame.image.load('images/newgame.png').convert_alpha()
 
 #create button instances
-resume_button = button.Button(0, 0, resume_img, 1)
-options_button = button.Button(0, 0, options_img, 1)
-quit_button = button.Button(0, 0, quit_img, 1)
-back_button = button.Button(0, 0, back_img, 1)
-notebook_button = button.Button(0, 0, notebook_img, 1)
+resume_button = button.Button(150, -100, resume_img, 1)
+options_button = button.Button(150,-50, options_img, 1)
+quit_button = button.Button(150,0, quit_img, 1)
+back_button = button.Button(150,-100, back_img, 1)
+notebook_button = button.Button(150,0, notebook_img, 1)
 
 # def draw_text(text, font, text_col, x, y):
 #   img = font.render(text, True, text_col)
@@ -66,10 +66,10 @@ while run:
       if notebook_button.draw(screen):
         print("Notebook") #to be changed when notebook is implemented
   else:
-    screen.blit(title_img, (-100,-450))
+    screen.blit(title_img, (150,-100))
     # resume_button.draw(screen)
-    screen.blit(resume_img, (-100,-250))
-    screen.blit(newgame_img, (-100,-150))
+    screen.blit(resume_img, (150,0))
+    screen.blit(newgame_img, (150,50))
 
   #event handler
   for event in pygame.event.get():
