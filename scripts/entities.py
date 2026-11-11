@@ -152,6 +152,19 @@ class PhysicsEntity(pygame.sprite.Sprite):
         DASH_COOLDOWN = 1000
 
         if (current_time - self.last_dash_time >= DASH_COOLDOWN) and self.form == 'astral':
+            projected_x = self.pos[0]
+            if self.flip:
+                projected_x -= DASH_DISTANCE
+            else:
+                projected_x += DASH_DISTANCE
+
+            simulated_rect = pygame.Rect(int(projected_x), int(self.pos[1]), self.size[0], self.size[1])
+            nearby_rects = tilemap.physics_rects_around([projected_x, self.pos[1]])
+
+            for rect in nearby_rects:
+                if simulated_rect.colliderect(rect):
+                    return False
+            
             steps = 4
             step_distance = DASH_DISTANCE / steps
 
