@@ -6,6 +6,8 @@ from scripts.utils import load_image, load_images, Animation
 from scripts.entities import PhysicsEntity
 from scripts.tilemap import Tilemap
 from scripts.interactable import Interactable, Door, Switch, MovableWall
+from menus.mainmenu import MainMenu
+from menus import button
 
 class Game:
     def __init__(self, player_count = 1):
@@ -19,6 +21,8 @@ class Game:
         
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height)) 
         self.display = pygame.Surface((self.screen_width, self.screen_height)) #allows for scaling - this can be changed to different pixel values to scale differently
+        self.main_menu = MainMenu(self.screen)
+        self.game_started = False
 
         self.clock = pygame.time.Clock()
 
@@ -74,7 +78,7 @@ class Game:
 
         self.paused = False #default to unpaused for game start
         self.pause_selection = 0 #the numeric representation of the pause menu's choices
-        self.pause_options = ["RESUME GAME", "QUIT GAME"] #pause menu choices
+        self.pause_options = ["RESUME GAME", "QUIT GAME", "NOTEBOOK"] #pause menu choices
 
         pygame.font.init() #initialize and use fonts
         self.pause_font = pygame.font.SysFont("Arial", 64, bold = True)
@@ -82,66 +86,79 @@ class Game:
         
     def run(self):
         while True: #run the program and loop continuously until you tell it to quit (close the window)
-            self.display.fill((0, 0, 0)) #background fill all black
-            
-            #Scale the background to fit self.display's size
-            display_size = (self.display.get_width(), self.display.get_height())
-            scaled_bg = pygame.transform.scale(self.assets['background'], display_size)
-            self.display.blit(scaled_bg, (0, 0))
-
-            if self.numplayers == 1:
-                self.scroll[0] += (self.player.get_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20 #camera movement in x direction centered directly between 2 players
-                self.scroll[1] += (self.player.get_rect().centery- self.display.get_height() / 2 - self.scroll[1]) / 20 #camera movement in y direction centered directly between 2 players
+            if not self.game_started:
+                #draw the main menu
+                action = self.main_menu.draw()
+                if action == "newgame":
+                    self.game_started = True
+                elif action == "resume":
+                    self.game_started = True
+                elif action == "quit":
+                    self.game_started == False
+                    pygame.quit()
+                    sys.exit()
             else:
-                self.scroll[0] += (((self.player.get_rect().centerx + self.player2.get_rect().centerx) / 2) - self.display.get_width() / 2 - self.scroll[0]) / 20 #camera movement in x direction centered directly between 2 players
-                self.scroll[1] += (((self.player.get_rect().centery + self.player2.get_rect().centery) / 2)- self.display.get_height() / 2 - self.scroll[1]) / 20 #camera movement in y direction centered directly between 2 players
-            render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
-            
-            self.tilemap.render(self.display, offset = render_scroll) #render the tilemap around the players, no need to render everything at all times
+                #gameplay logic
+                self.display.fill((0, 0, 0)) #background fill all black
+                
+                #Scale the background to fit self.display's size
+                display_size = (self.display.get_width(), self.display.get_height())
+                scaled_bg = pygame.transform.scale(self.assets['background'], display_size)
+                self.display.blit(scaled_bg, (0, 0))
 
-            for item in self.interactables: #update and display the interactable items in the world
+                if self.numplayers == 1:
+                    self.scroll[0] += (self.player.get_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20 #camera movement in x direction centered directly between 2 players
+                    self.scroll[1] += (self.player.get_rect().centery- self.display.get_height() / 2 - self.scroll[1]) / 20 #camera movement in y direction centered directly between 2 players
+                else:
+                    self.scroll[0] += (((self.player.get_rect().centerx + self.player2.get_rect().centerx) / 2) - self.display.get_width() / 2 - self.scroll[0]) / 20 #camera movement in x direction centered directly between 2 players
+                    self.scroll[1] += (((self.player.get_rect().centery + self.player2.get_rect().centery) / 2)- self.display.get_height() / 2 - self.scroll[1]) / 20 #camera movement in y direction centered directly between 2 players
+                render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+                
+                self.tilemap.render(self.display, offset = render_scroll) #render the tilemap around the players, no need to render everything at all times
+
+                for item in self.interactables: #update and display the interactable items in the world
+                    if not self.paused:
+                        item.update()
+                    self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
+
                 if not self.paused:
-                    item.update()
-                self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
+                    self.player.update(self.tilemap, ((self.movement1[1] - self.movement1[0]) * 4, 0)) #update the character and tilemap in each loop, *4 scales the move speed
+                    self.player.render(self.display, offset = render_scroll)
+                    if self.numplayers == 2:
+                        self.player2.update(self.tilemap, ((self.movement2[1] - self.movement2[0]) * 4, 0)) #same as above for 2nd player
+                        self.player2.render(self.display, offset = render_scroll)
+                else:
+                    self.player.render(self.display, offset = render_scroll)
+                    if self.numplayers == 2:
+                        self.player2.render(self.display, offset = render_scroll)
 
-            if not self.paused:
-                self.player.update(self.tilemap, ((self.movement1[1] - self.movement1[0]) * 4, 0)) #update the character and tilemap in each loop, *4 scales the move speed
-                self.player.render(self.display, offset = render_scroll)
-                if self.numplayers == 2:
-                    self.player2.update(self.tilemap, ((self.movement2[1] - self.movement2[0]) * 4, 0)) #same as above for 2nd player
-                    self.player2.render(self.display, offset = render_scroll)
-            else:
-                self.player.render(self.display, offset = render_scroll)
-                if self.numplayers == 2:
-                    self.player2.render(self.display, offset = render_scroll)
+                if self.paused: #if paused, set a transparent black surface over the screen and display the pause menu text
+                    overlay = pygame.Surface((self.screen_width, self.screen_height)) 
+                    overlay.fill((0,0,0,150)) 
+                    self.display.blit(overlay, (0,0))       
 
-            if self.paused: #if paused, set a transparent black surface over the screen and display the pause menu text
-                overlay = pygame.Surface((self.screen_width, self.screen_height)) 
-                overlay.fill((0,0,0,150)) 
-                self.display.blit(overlay, (0,0))       
+                    pause_text = self.pause_font.render("GAME PAUSED", True, (255, 255, 255))
+                    text_rect = pause_text.get_rect(center=(self.screen_width / 2, self.screen_height / 2))
+                    self.display.blit(pause_text, text_rect)
 
-                pause_text = self.pause_font.render("GAME PAUSED", True, (255, 255, 255))
-                text_rect = pause_text.get_rect(center=(self.screen_width / 2, self.screen_height / 2))
-                self.display.blit(pause_text, text_rect)
-
-                for index, option_text in enumerate(self.pause_options):
-                    if index == self.pause_selection:
-                        text_color = (255, 190, 0)
-                        display_string = f"> {option_text} <"
-                    else:
-                        text_color = (160,160, 160)
-                        display_string = option_text
-                    option_surf = self.menu_font.render(display_string, True, text_color)
-                    vertical_y = self.screen_height / 2 + 50 + (index * 60)
-                    option_rect = option_surf.get_rect(center=(self.screen_width / 2, vertical_y))
-                    self.display.blit(option_surf, option_rect)            
-            
+                    for index, option_text in enumerate(self.pause_options):
+                        if index == self.pause_selection:
+                            text_color = (255, 190, 0)
+                            display_string = f"> {option_text} <"
+                        else:
+                            text_color = (160,160, 160)
+                            display_string = option_text
+                        option_surf = self.menu_font.render(display_string, True, text_color)
+                        vertical_y = self.screen_height / 2 + 50 + (index * 60)
+                        option_rect = option_surf.get_rect(center=(self.screen_width / 2, vertical_y))
+                        self.display.blit(option_surf, option_rect)            
+                
             for event in pygame.event.get(): #events are how pygame reads input
                 if event.type == pygame.QUIT:
                     #db_conn.close() ##remember to close the inventory database when the game closes
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.KEYDOWN: #keydown is when you press the button and this assigns the standard left and right to move, and up to jump
+                if event.type == pygame.KEYDOWN and self.game_started: #keydown is when you press the button and this assigns the standard left and right to move, and up to jump
                     if event.key == pygame.K_ESCAPE: #escape to pause the game, press again to unpause
                         self.paused = not self.paused
                         self.pause_selection = 0
@@ -205,7 +222,7 @@ class Game:
                                 if self.player2.dash(pygame.time.get_ticks(), self.tilemap):
                                     pass
 
-                if event.type == pygame.KEYUP and not self.paused: #keyup is when the key is released, so we reset back to the standard
+                if event.type == pygame.KEYUP and not self.paused and self.game_started: #keyup is when the key is released, so we reset back to the standard
                     if event.key == pygame.K_LEFT:
                         self.movement1[0] = False
                     if event.key == pygame.K_RIGHT:
@@ -216,11 +233,11 @@ class Game:
                             self.movement2[0] = False
                         if event.key == pygame.K_d:
                             self.movement2[1] = False
-            
-            #Clean the main screen window entirely before redrawing the new frame to clear remnants
-            self.screen.fill((0,0,0))      
-            
-            self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0)) #blit command sends the objects to the screen
+                
+                #Clean the main screen window entirely before redrawing the new frame to clear remnants
+                #self.screen.fill((0,0,0))      
+            if self.game_started:
+                self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0)) #blit command sends the objects to the screen
             pygame.display.update() #update each time the loop cycles
             self.clock.tick(60) #update the clock - this is currently set to 60 FPS, which should be more than we need for this game
 
