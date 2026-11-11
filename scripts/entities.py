@@ -57,7 +57,7 @@ class PhysicsEntity(pygame.sprite.Sprite):
     
     def update_image(self):
         base_img = self.animation.img()
-        self.image = pygame.transform.flip(base_img, self.flip, False)
+        self.image = pygame.transform.flip(base_img, not self.flip, False)
     
     def update(self, tilemap, movement=(0, 0)):
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
