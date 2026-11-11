@@ -16,7 +16,7 @@ class MainMenu:
     self.newgame_button = button.Button(150, 50, self.newgame_img, 1)
 
   def draw(self):
-    self.screen.fill((255, 0, 0))
+    self.screen.fill((0, 0, 0))
     self.screen.blit(self.title_img, (150, -100))
     if self.newgame_button.draw(self.screen):
       return "newgame"
