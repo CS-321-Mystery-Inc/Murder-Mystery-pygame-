@@ -41,3 +41,23 @@ def update_game_state(key, value):
             INSERT OR REPLACE INTO game_state
             VALUES (?, ?)
         """, (key, value))
+
+
+def get_game_state(key):
+    """Retrieve a saved value, or None if it does not exist."""
+    with sqlite3.connect(DB_NAME) as conn:
+        row = conn.execute(
+            "SELECT value FROM game_state WHERE key = ?", (key,)
+        ).fetchone()
+        return row[0] if row else None
+
+
+def replace_evidence(rows):
+    """Restore the collected evidence from a save in one transaction."""
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("DELETE FROM evidence")
+        conn.executemany(
+            "INSERT INTO evidence (evidence_id, name, description, collected_by) "
+            "VALUES (?, ?, ?, ?)",
+            rows,
+        )

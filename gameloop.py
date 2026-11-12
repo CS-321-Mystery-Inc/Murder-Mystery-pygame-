@@ -1,4 +1,5 @@
 import sys
+import sqlite3
 
 import pygame
 
@@ -8,6 +9,7 @@ from scripts.tilemap import Tilemap
 from scripts.interactable import Interactable, Door, Switch, MovableWall
 from menus.mainmenu import MainMenu
 from menus import button
+from database.save_load_service import SaveLoadService
 
 class Game:
     def __init__(self, player_count = 1):
@@ -30,6 +32,8 @@ class Game:
 
         #set number of players (1 or 2)
         self.numplayers = player_count
+        # initialize the save/load service with the number of players
+        self.save_load_service = SaveLoadService(self.numplayers)
 
         #track an initial movement instance, these will be used later to help with the sprite movements
         self.movement1 = [False, False]
@@ -78,12 +82,58 @@ class Game:
 
         self.paused = False #default to unpaused for game start
         self.pause_selection = 0 #the numeric representation of the pause menu's choices
-        self.pause_options = ["RESUME GAME", "QUIT GAME", "NOTEBOOK"] #pause menu choices
+        self.pause_options = ["RESUME GAME", "SAVE GAME", "LOAD GAME", "QUIT GAME", "NOTEBOOK"] #pause menu choices
+        self.pause_status = ""  #save/load feedback displayed on the pause menu
 
         pygame.font.init() #initialize and use fonts
         self.pause_font = pygame.font.SysFont("Arial", 64, bold = True)
         self.menu_font = pygame.font.SysFont("Arial", 40, bold = True)
         
+    # --- In-game save/load (corresponds to the class and sequence diagrams) ---
+    def capture_positions(self):
+        positions = {"player1": list(self.player.pos)}
+        if self.numplayers == 2:
+            positions["player2"] = list(self.player2.pos)
+        return positions
+
+    def restore_positions(self, positions):
+        self.player.pos = list(positions["player1"])
+        self.player.get_rect()  #PhysicsEntity.pos is the actual source of position
+        self.player.velocity = [0, 0]
+        if self.numplayers == 2:
+            self.player2.pos = list(positions["player2"])
+            self.player2.get_rect()
+            self.player2.velocity = [0, 0]
+        self.movement1 = [False, False]
+        self.movement2 = [False, False]
+
+    def save_game(self):
+        try:
+            self.save_load_service.save_game(self.capture_positions())
+            self.pause_status = "Game saved successfully!"
+            print(self.pause_status)
+            return True
+        except (ValueError, sqlite3.Error) as error:
+            self.pause_status = f"Could not save game: {error}"
+            print(self.pause_status)
+            return False
+
+    def load_game(self):
+        try:
+            positions = self.save_load_service.load_game()
+            if positions is None:
+                self.pause_status = "No saved game found."
+                print(self.pause_status)
+                return False
+            self.restore_positions(positions)
+            self.pause_status = "Game loaded successfully!"
+            print(self.pause_status)
+            return True
+        except (ValueError, sqlite3.Error) as error:
+            self.pause_status = f"Could not load game: {error}"
+            print(self.pause_status)
+            return False
+
     def run(self):
         while True: #run the program and loop continuously until you tell it to quit (close the window)
             if not self.game_started:
@@ -151,8 +201,14 @@ class Game:
                         option_surf = self.menu_font.render(display_string, True, text_color)
                         vertical_y = self.screen_height / 2 + 50 + (index * 60)
                         option_rect = option_surf.get_rect(center=(self.screen_width / 2, vertical_y))
-                        self.display.blit(option_surf, option_rect)            
-                
+                        self.display.blit(option_surf, option_rect)
+
+                    if self.pause_status:
+                        status_surf = self.menu_font.render(self.pause_status, True, (255, 255, 255))
+                        status_y = self.screen_height / 2 + 50 + len(self.pause_options) * 60
+                        status_rect = status_surf.get_rect(center=(self.screen_width / 2, status_y))
+                        self.display.blit(status_surf, status_rect)
+
             for event in pygame.event.get(): #events are how pygame reads input
                 if event.type == pygame.QUIT:
                     #db_conn.close() ##remember to close the inventory database when the game closes
@@ -162,6 +218,7 @@ class Game:
                     if event.key == pygame.K_ESCAPE: #escape to pause the game, press again to unpause
                         self.paused = not self.paused
                         self.pause_selection = 0
+                        self.pause_status = ""
                     if self.paused: #if paused, instantly freeze the characters and stop movement. without this, the character would continue moving behind the pause screen
                         self.movement1 = [False, False]
                         self.movement2 = [False, False]
@@ -169,16 +226,20 @@ class Game:
                         if self.numplayers == 2: 
                             self.player2.velocity = [0, 0]
                         if event.key == pygame.K_UP: #menu selection movement
-                            self.pause_selection = (self.pause_selection - 1)
+                            self.pause_selection = (self.pause_selection - 1) % len(self.pause_options)
                         if event.key == pygame.K_DOWN:
-                            self.pause_selection = (self.pause_selection + 1)
+                            self.pause_selection = (self.pause_selection + 1) % len(self.pause_options)
                         if event.key == pygame.K_RETURN:
-                            if self.pause_selection == 0: #menu selection with "Return / Enter" key
+                            if self.pause_selection == 0: #resume game
                                 self.paused = False
                             elif self.pause_selection == 1:
-                                #db_conn.close()
-                                pygame.quit() #quit out of the game and exit / close database connection
+                                self.save_game()
+                            elif self.pause_selection == 2:
+                                self.load_game()
+                            elif self.pause_selection == 3:
+                                pygame.quit() #quit out of the game
                                 sys.exit()
+                            #option 4 (NOTEBOOK) is managed by the teammate implementing it
 
                     else: #if not paused, keys provide movement and interaction for the character
                         if event.key == pygame.K_LEFT:
