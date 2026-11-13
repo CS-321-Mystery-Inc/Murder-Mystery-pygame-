@@ -135,16 +135,24 @@ class Game:
             return False
 
     def run(self):
+        intro_sfx = pygame.mixer.Sound("data/audio/intro.mp3") #Credit: Music by Nikita Kondrashev (https://pixabay.com/users/leberch-42823964) from Pixabay (https://pixabay.com/music)
+        intro_sfx.play(loops = -1) #Music loops indefinitely (until player quits the game)
+
+        pencil_sfx = pygame.mixer.Sound("data/audio/pencil.mp3") #Credit: Sound Effect by freesound_community (https://pixabay.com/users/freesound_community-46691455) from Pixabay (https://pixabay.com/sound-effects)
+        
         while True: #run the program and loop continuously until you tell it to quit (close the window)
             if not self.game_started:
                 #draw the main menu
                 action = self.main_menu.draw()
                 if action == "newgame":
+                    pencil_sfx.play()
                     self.game_started = True
                 elif action == "resume":
+                    pencil_sfx.play()
                     self.game_started = True
                 elif action == "quit":
                     self.game_started == False
+                    intro_sfx.stop()
                     pygame.quit()
                     sys.exit()
             else:
@@ -212,6 +220,7 @@ class Game:
             for event in pygame.event.get(): #events are how pygame reads input
                 if event.type == pygame.QUIT:
                     #db_conn.close() ##remember to close the inventory database when the game closes
+                    intro_sfx.stop()
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.KEYDOWN and self.game_started: #keydown is when you press the button and this assigns the standard left and right to move, and up to jump
@@ -237,6 +246,7 @@ class Game:
                             elif self.pause_selection == 2:
                                 self.load_game()
                             elif self.pause_selection == 3:
+                                intro_sfx.stop()
                                 pygame.quit() #quit out of the game
                                 sys.exit()
                             #option 4 (NOTEBOOK) is managed by the teammate implementing it
@@ -302,6 +312,9 @@ class Game:
             pygame.display.update() #update each time the loop cycles
             self.clock.tick(60) #update the clock - this is currently set to 60 FPS, which should be more than we need for this game
 
-user_input = int(input("Select number of players: ")) #select number of players at runtime. this will be updated with a start menu which will output the numplayers variable
+user_input = int(input("Select number of players (1 or 2): ")) #select number of players at runtime. this will be updated with a start menu which will output the numplayers variable
+
+while (user_input != 1 and user_input != 2): #Prompts user to select number of players again if input is invalid at runtime
+    user_input = int(input("Invalid input.\nSelect number of players (1 or 2): "))
 
 Game(user_input).run() #run the game - user_input will be updated with the return variable of the start menu later

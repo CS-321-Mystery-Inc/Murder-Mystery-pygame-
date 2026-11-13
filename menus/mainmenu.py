@@ -5,19 +5,19 @@ class MainMenu:
   def __init__(self, screen):
     #load images for the buttons
     self.screen = screen
-    self.title_img = pygame.image.load("menus/images/title.png").convert_alpha()
+    self.title_img = pygame.transform.scale_by(pygame.image.load("menus/images/title.png").convert_alpha(), 2)
     self.resume_img = pygame.image.load("menus/images/resume.png").convert_alpha()
     self.newgame_img = pygame.image.load('menus/images/newgame.png').convert_alpha()
     self.quit_img = pygame.image.load("menus/images/quit.png").convert_alpha()
 
   #buttons
-    self.resume_button = button.Button(150, 0, self.resume_img, 1)
-    self.quit_button = button.Button(150,25, self.quit_img, 1)
-    self.newgame_button = button.Button(150, 50, self.newgame_img, 1)
+    self.resume_button = button.Button(480, 150, self.resume_img, 1.5)
+    self.quit_button = button.Button(480, 250, self.quit_img, 1.5)
+    self.newgame_button = button.Button(480, 350, self.newgame_img, 1.5)
 
   def draw(self):
     self.screen.fill((0, 0, 0))
-    self.screen.blit(self.title_img, (150, -100))
+    self.screen.blit(self.title_img, (325, -225))
     if self.newgame_button.draw(self.screen):
       return "newgame"
     if self.resume_button.draw(self.screen):
