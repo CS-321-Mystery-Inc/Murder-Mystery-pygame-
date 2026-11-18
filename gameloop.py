@@ -85,6 +85,8 @@ class Game:
         self.pause_options = ["RESUME GAME", "SAVE GAME", "LOAD GAME", "QUIT GAME", "NOTEBOOK"] #pause menu choices
         self.pause_status = ""  #save/load feedback displayed on the pause menu
 
+        self.in_notebook = False #default to closed notebook
+
         pygame.font.init() #initialize and use fonts
         self.pause_font = pygame.font.SysFont("Arial", 64, bold = True)
         self.menu_font = pygame.font.SysFont("Arial", 40, bold = True)
@@ -134,6 +136,13 @@ class Game:
             print(self.pause_status)
             return False
 
+    def freeze_game(self):
+        self.movement1 = [False, False]
+        self.movement2 = [False, False]
+        self.player.velocity = [0, 0]
+        if self.numplayers == 2: 
+            self.player2.velocity = [0, 0]
+
     def run(self):
         intro_sfx = pygame.mixer.Sound("data/audio/intro.mp3") #Credit: Music by Nikita Kondrashev (https://pixabay.com/users/leberch-42823964) from Pixabay (https://pixabay.com/music)
         intro_sfx.play(loops = -1) #Music loops indefinitely (until player quits the game)
@@ -175,11 +184,11 @@ class Game:
                 self.tilemap.render(self.display, offset = render_scroll) #render the tilemap around the players, no need to render everything at all times
 
                 for item in self.interactables: #update and display the interactable items in the world
-                    if not self.paused:
+                    if not self.paused and not self.in_notebook:
                         item.update()
                     self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
 
-                if not self.paused:
+                if not self.paused and not self.in_notebook:
                     self.player.update(self.tilemap, ((self.movement1[1] - self.movement1[0]) * 4, 0)) #update the character and tilemap in each loop, *4 scales the move speed
                     self.player.render(self.display, offset = render_scroll)
                     if self.numplayers == 2:
@@ -217,6 +226,13 @@ class Game:
                         status_rect = status_surf.get_rect(center=(self.screen_width / 2, status_y))
                         self.display.blit(status_surf, status_rect)
 
+                if self.in_notebook: #displays notebook when opened
+                    n_overlay = pygame.Surface((self.screen_width, self.screen_height)) 
+                    n_overlay.fill((0,0,0,150)) 
+                    self.display.blit(n_overlay, (0,0))
+                    notebook_img = pygame.transform.scale_by(pygame.image.load("menus/images/notebook_1.png").convert_alpha(), 5)
+                    self.display.blit(notebook_img, (315, -90))
+
             for event in pygame.event.get(): #events are how pygame reads input
                 if event.type == pygame.QUIT:
                     #db_conn.close() ##remember to close the inventory database when the game closes
@@ -229,11 +245,7 @@ class Game:
                         self.pause_selection = 0
                         self.pause_status = ""
                     if self.paused: #if paused, instantly freeze the characters and stop movement. without this, the character would continue moving behind the pause screen
-                        self.movement1 = [False, False]
-                        self.movement2 = [False, False]
-                        self.player.velocity = [0, 0]
-                        if self.numplayers == 2: 
-                            self.player2.velocity = [0, 0]
+                        self.freeze_game()
                         if event.key == pygame.K_UP: #menu selection movement
                             self.pause_selection = (self.pause_selection - 1) % len(self.pause_options)
                         if event.key == pygame.K_DOWN:
@@ -249,7 +261,16 @@ class Game:
                                 intro_sfx.stop()
                                 pygame.quit() #quit out of the game
                                 sys.exit()
-                            #option 4 (NOTEBOOK) is managed by the teammate implementing it
+                            elif self.pause_selection == 4: #open notebook
+                                self.in_notebook = True
+                                self.paused = False
+                    if self.in_notebook:
+                        self.freeze_game()
+                        if event.key == pygame.K_ESCAPE: #escape to return to pause menu
+                            self.in_notebook = False
+                            self.paused = True
+                            self.pause_selection = 0
+                            self.pause_status = ""
 
                     else: #if not paused, keys provide movement and interaction for the character
                         if event.key == pygame.K_LEFT:
