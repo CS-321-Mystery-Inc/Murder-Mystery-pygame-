@@ -10,6 +10,7 @@ from scripts.interactable import Interactable, Door, Switch, MovableWall
 from menus.mainmenu import MainMenu
 from menus import button
 from database.save_load_service import SaveLoadService
+from scripts.clue import Clue
 
 class Game:
     def __init__(self, player_count = 1):
@@ -60,6 +61,8 @@ class Game:
             'switch/flipped':Animation(load_images('entities/lever/flipped'), img_dur= 6)
         }
 
+        clue_img = load_image("entities/clues/placeholderclue.png")
+
         #instantiate the player
         self.player = PhysicsEntity(self, 'Player', (2000, 500), (35,64), "corporeal") #instantiate the player, call it player, place it as 50,50 and set its size to 8x15, default is corporeal body
 
@@ -72,6 +75,8 @@ class Game:
         self.scroll = [0, 0]
 
         self.interactables = pygame.sprite.Group()
+        self.clues = pygame.sprite.Group()
+        self.collected_clues = []
         secret_wall = MovableWall(self, (1500, 400), size = (64, 192)) #example wall for tutorial interaction
         self.interactables.add(secret_wall)
 
@@ -90,6 +95,11 @@ class Game:
         pygame.font.init() #initialize and use fonts
         self.pause_font = pygame.font.SysFont("Arial", 64, bold = True)
         self.menu_font = pygame.font.SysFont("Arial", 40, bold = True)
+
+        clue_positions = [(500, 450), (1200, 600), (1800, 500), (2500, 700)]
+        for i, pos in enumerate(clue_positions):
+            clue = Clue(pos, clue_img, f"Clue {i+1}")
+            self.clues.add(clue)
         
     # --- In-game save/load (corresponds to the class and sequence diagrams) ---
     def capture_positions(self):
@@ -183,6 +193,9 @@ class Game:
                 
                 self.tilemap.render(self.display, offset = render_scroll) #render the tilemap around the players, no need to render everything at all times
 
+                for item in self.clues:
+                    self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
+
                 for item in self.interactables: #update and display the interactable items in the world
                     if not self.paused and not self.in_notebook:
                         item.update()
@@ -194,6 +207,11 @@ class Game:
                     if self.numplayers == 2:
                         self.player2.update(self.tilemap, ((self.movement2[1] - self.movement2[0]) * 4, 0)) #same as above for 2nd player
                         self.player2.render(self.display, offset = render_scroll)
+                    for item in list(self.clues):
+                        if item.collect(self.player):
+                            self.collected_clues.append(item.item_name)
+                        elif self.numplayers == 2 and item.collect(self.player2):
+                            self.collected_clues.append(item.item_name)
                 else:
                     self.player.render(self.display, offset = render_scroll)
                     if self.numplayers == 2:
@@ -292,6 +310,13 @@ class Game:
                             else:
                                 pass
                         if event.key == pygame.K_e:
+                            for item in list(self.clues):
+                                if item.can_collect(self.player):
+                                    self.collected_clues.append(item.item_name)
+                                    item.kill()
+                                elif self.numplayers == 2 and item.can_collect(self.player2):
+                                    self.collected_clues.append(item.item_name)
+                                    item.kill()
                             for item in self.interactables:
                                 if self.player.get_rect().colliderect(item.rect):
                                     item.interact(self.player)
