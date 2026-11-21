@@ -11,6 +11,7 @@ from scripts.interactable import Interactable, Door, Switch, MovableWall
 from menus.mainmenu import MainMenu
 from menus import button
 from database.save_load_service import SaveLoadService
+from scripts.clue import Clue
 
 class Game:
     def __init__(self, player_count = 1):
@@ -61,6 +62,8 @@ class Game:
             'switch/flipped':Animation(load_images('entities/lever/flipped'), img_dur= 6)
         }
 
+        clue_img = load_image("entities/clues/placeholderclue.png")
+
         #instantiate the player
         self.player = PhysicsEntity(self, 'Player', (2000, 500), (35,64), "corporeal") #instantiate the player, call it player, place it as 50,50 and set its size to 8x15, default is corporeal body
 
@@ -73,6 +76,8 @@ class Game:
         self.scroll = [0, 0]
 
         self.interactables = pygame.sprite.Group()
+        self.clues = pygame.sprite.Group()
+        self.collected_clues = []
         secret_wall = MovableWall(self, (1500, 400), size = (64, 192)) #example wall for tutorial interaction
         self.interactables.add(secret_wall)
 
@@ -86,9 +91,16 @@ class Game:
         self.pause_options = ["RESUME GAME", "SAVE GAME", "LOAD GAME", "QUIT GAME", "NOTEBOOK"] #pause menu choices
         self.pause_status = ""  #save/load feedback displayed on the pause menu
 
+        self.in_notebook = False #default to closed notebook
+
         pygame.font.init() #initialize and use fonts
         self.pause_font = pygame.font.SysFont("Arial", 64, bold = True)
         self.menu_font = pygame.font.SysFont("Arial", 40, bold = True)
+
+        clue_positions = [(500, 450), (1200, 600), (1800, 500), (2500, 700)]
+        for i, pos in enumerate(clue_positions):
+            clue = Clue(pos, clue_img, f"Clue {i+1}")
+            self.clues.add(clue)
         
     # --- In-game save/load (corresponds to the class and sequence diagrams) ---
     def capture_positions(self):
@@ -135,6 +147,13 @@ class Game:
             print(self.pause_status)
             return False
 
+    def freeze_game(self):
+        self.movement1 = [False, False]
+        self.movement2 = [False, False]
+        self.player.velocity = [0, 0]
+        if self.numplayers == 2: 
+            self.player2.velocity = [0, 0]
+
     def run(self):
         intro_sfx = pygame.mixer.Sound("data/audio/intro.mp3") #Credit: Music by Nikita Kondrashev (https://pixabay.com/users/leberch-42823964) from Pixabay (https://pixabay.com/music)
         intro_sfx.play(loops = -1) #Music loops indefinitely (until player quits the game)
@@ -175,17 +194,25 @@ class Game:
                 
                 self.tilemap.render(self.display, offset = render_scroll) #render the tilemap around the players, no need to render everything at all times
 
+                for item in self.clues:
+                    self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
+
                 for item in self.interactables: #update and display the interactable items in the world
-                    if not self.paused:
+                    if not self.paused and not self.in_notebook:
                         item.update()
                     self.display.blit(item.image, (item.pos[0] - render_scroll[0], item.pos[1] - render_scroll[1]))
 
-                if not self.paused:
+                if not self.paused and not self.in_notebook:
                     self.player.update(self.tilemap, ((self.movement1[1] - self.movement1[0]) * 4, 0)) #update the character and tilemap in each loop, *4 scales the move speed
                     self.player.render(self.display, offset = render_scroll)
                     if self.numplayers == 2:
                         self.player2.update(self.tilemap, ((self.movement2[1] - self.movement2[0]) * 4, 0)) #same as above for 2nd player
                         self.player2.render(self.display, offset = render_scroll)
+                    for item in list(self.clues):
+                        if item.collect(self.player):
+                            self.collected_clues.append(item.item_name)
+                        elif self.numplayers == 2 and item.collect(self.player2):
+                            self.collected_clues.append(item.item_name)
                 else:
                     self.player.render(self.display, offset = render_scroll)
                     if self.numplayers == 2:
@@ -218,6 +245,13 @@ class Game:
                         status_rect = status_surf.get_rect(center=(self.screen_width / 2, status_y))
                         self.display.blit(status_surf, status_rect)
 
+                if self.in_notebook: #displays notebook when opened
+                    n_overlay = pygame.Surface((self.screen_width, self.screen_height)) 
+                    n_overlay.fill((0,0,0,150)) 
+                    self.display.blit(n_overlay, (0,0))
+                    notebook_img = pygame.transform.scale_by(pygame.image.load("menus/images/notebook_1.png").convert_alpha(), 5)
+                    self.display.blit(notebook_img, (315, -90))
+
             for event in pygame.event.get(): #events are how pygame reads input
                 if event.type == pygame.QUIT:
                     #db_conn.close() ##remember to close the inventory database when the game closes
@@ -230,11 +264,7 @@ class Game:
                         self.pause_selection = 0
                         self.pause_status = ""
                     if self.paused: #if paused, instantly freeze the characters and stop movement. without this, the character would continue moving behind the pause screen
-                        self.movement1 = [False, False]
-                        self.movement2 = [False, False]
-                        self.player.velocity = [0, 0]
-                        if self.numplayers == 2: 
-                            self.player2.velocity = [0, 0]
+                        self.freeze_game()
                         if event.key == pygame.K_UP: #menu selection movement
                             self.pause_selection = (self.pause_selection - 1) % len(self.pause_options)
                         if event.key == pygame.K_DOWN:
@@ -250,7 +280,16 @@ class Game:
                                 intro_sfx.stop()
                                 pygame.quit() #quit out of the game
                                 sys.exit()
-                            #option 4 (NOTEBOOK) is managed by the teammate implementing it
+                            elif self.pause_selection == 4: #open notebook
+                                self.in_notebook = True
+                                self.paused = False
+                    if self.in_notebook:
+                        self.freeze_game()
+                        if event.key == pygame.K_ESCAPE: #escape to return to pause menu
+                            self.in_notebook = False
+                            self.paused = True
+                            self.pause_selection = 0
+                            self.pause_status = ""
 
                     else: #if not paused, keys provide movement and interaction for the character
                         if event.key == pygame.K_LEFT:
@@ -272,6 +311,13 @@ class Game:
                             else:
                                 pass
                         if event.key == pygame.K_e:
+                            for item in list(self.clues):
+                                if item.can_collect(self.player):
+                                    self.collected_clues.append(item.item_name)
+                                    item.kill()
+                                elif self.numplayers == 2 and item.can_collect(self.player2):
+                                    self.collected_clues.append(item.item_name)
+                                    item.kill()
                             for item in self.interactables:
                                 if self.player.get_rect().colliderect(item.rect):
                                     item.interact(self.player)
