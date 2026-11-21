@@ -95,7 +95,13 @@ class PhysicsEntity(pygame.sprite.Sprite):
 
         self.pos[1] += frame_movement[1] #same as above, but in the up/down direction
         entity_rect = self.get_rect()
-        for rect in tilemap.physics_rects_around(self.pos):
+        vertical_rects = tilemap.physics_rects_around(self.pos)
+        for item in self.game.interactables:
+            if hasattr(item, 'get_solid_rect'):
+                solid_rect = item.get_solid_rect()
+                if solid_rect:
+                    vertical_rects.append(solid_rect)
+        for rect in vertical_rects:
             if entity_rect.colliderect(rect):
                 if frame_movement[1] > 0:
                     entity_rect.bottom = rect.top
@@ -158,12 +164,25 @@ class PhysicsEntity(pygame.sprite.Sprite):
             else:
                 projected_x += DASH_DISTANCE
 
-            simulated_rect = pygame.Rect(int(projected_x), int(self.pos[1]), self.size[0], self.size[1])
-            nearby_rects = tilemap.physics_rects_around([projected_x, self.pos[1]])
+            # Check the entire dash path (not only the destination), so an
+            # astral dash cannot skip through the unopened lever-controlled wall.
+            start_x = self.pos[0]
+            path_rect = pygame.Rect(int(min(start_x, projected_x)),
+                                    int(self.pos[1]),
+                                    int(abs(projected_x - start_x) + self.size[0]),
+                                    self.size[1])
+            halfway = [(start_x + projected_x) / 2, self.pos[1]]
+            nearby_rects = (tilemap.physics_rects_around(self.pos) +
+                            tilemap.physics_rects_around(halfway) +
+                            tilemap.physics_rects_around([projected_x, self.pos[1]]))
+            for item in self.game.interactables:
+                if hasattr(item, 'get_solid_rect'):
+                    solid = item.get_solid_rect()
+                    if solid is not None:
+                        nearby_rects.append(solid)
 
-            for rect in nearby_rects:
-                if simulated_rect.colliderect(rect):
-                    return False
+            if any(path_rect.colliderect(rect) for rect in nearby_rects):
+                return False
             
             steps = 4
             step_distance = DASH_DISTANCE / steps
@@ -190,6 +209,8 @@ class PhysicsEntity(pygame.sprite.Sprite):
             self.form = 'astral'
         else:
             self.form = 'corporeal'
+        self.set_action('idle')
+        self.jumps = 1 if self.form == 'corporeal' else 2
         self.update_image()
 
 class GhostTrail:

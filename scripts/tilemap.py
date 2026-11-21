@@ -1,59 +1,86 @@
 import pygame
 
-#script to determine the tiles of the world
-
-#when looking at collision detection, only need to look at the 9 boxes where the player is and around them
-NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (0, 0), (-1, 1), (0, 1), (1, 1)]
+NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0),
+                    (0, 0), (-1, 1), (0, 1), (1, 1)]
 PHYSICS_TILES = {'grass', 'stone', 'floor'}
 LEVEL_WIDTH = 64
+GROUND_ROW = 10
+TILE_SIZE = 64
+
+# Level 1 is deliberately built from the existing floor / stone tiles.
+# The passage at x=1536 is blocked by a separate movable wall until the lever
+# at x=2200 is flipped. Platforms are one jump above the main floor.
+LEVEL_ONE_ITEMS = (
+    {"id": 101, "name": "Coin 1", "item_type": "Coin", "center_x": 1870,
+     "surface_y": GROUND_ROW * TILE_SIZE,
+     "description": "The stone remembers what it guards. Look east for an iron tongue; only a living hand can wake it."},
+    {"id": 102, "name": "Coin 2", "item_type": "Coin", "center_x": 2680,
+     "surface_y": 8 * TILE_SIZE,
+     "description": "Above the right-hand path, the second mark waits. When iron yields, follow the passage toward the setting sun."},
+    {"id": 103, "name": "Coin 3", "item_type": "Coin", "center_x": 1210,
+     "surface_y": GROUND_ROW * TILE_SIZE,
+     "description": "The opened wall hid no answer, only a road. Seek the higher stones farther west for the final whisper."},
+    {"id": 104, "name": "Coin 4", "item_type": "Coin", "center_x": 800,
+     "surface_y": 8 * TILE_SIZE,
+     "description": "Four quiet witnesses speak only when gathered. Keep their words close; the notebook never forgets."},
+)
+
 
 class Tilemap:
-    def __init__(self, game, tile_size = 64):
+    def __init__(self, game, tile_size=64):
         self.game = game
         self.tile_size = tile_size
-        self.tilemap = {} #these tiles will be on a grid
-        self.offgrid_tiles = [] #these tiles will not be on the grid
+        self.tilemap = {}
+        self.offgrid_tiles = []
+        self.build_level_one()
 
-        for i in range(10): #vertical terrain pieces
-            self.tilemap['10;' + str(5 + i)] = {'type': 'stone', 'variant': 1, 'pos': (10, 5 + i)}
-            self.tilemap['0;' + str(i + 1)] = {'type': 'floor', 'variant': 0, 'pos': (0, i + 1)}
-            self.tilemap[str(LEVEL_WIDTH) + ';' + str(i + 1)] = {'type': 'floor', 'variant': 0, 'pos': (LEVEL_WIDTH, i + 1)}#right wall
-        for i in range(LEVEL_WIDTH):#horizontal terrain pieces
-            self.tilemap[str(i) + ';10'] = {'type': 'floor', 'variant': 1, 'pos': (i, 10)}#floor
-            self.tilemap[str(i) + ';1'] = {'type': 'floor', 'variant': 1, 'pos': (i, 1)}#ceiling
-        for i in range(5):
-            self.tilemap[str(20 + i) + ';4'] = {'type': 'stone', 'variant': 0, 'pos': (20 + i, 4)}
-            self.tilemap[str(24 + i) + ';7'] = {'type': 'stone', 'variant': 0, 'pos': (24 + i, 7)}
+    def add_tile(self, x, y, tile_type, variant=0):
+        self.tilemap[f'{x};{y}'] = {
+            'type': tile_type, 'variant': variant, 'pos': (x, y)
+        }
 
-    def tiles_around(self, pos): #identify tiles around the player and note which are there in the tiles[] list
+    def build_level_one(self):
+        """A complete walkable room with two elevated evidence platforms."""
+        self.tilemap.clear()
+        for x in range(LEVEL_WIDTH + 1):
+            self.add_tile(x, GROUND_ROW, 'floor', 1)
+            self.add_tile(x, 1, 'floor', 1)
+        for y in range(2, GROUND_ROW):
+            self.add_tile(0, y, 'floor', 0)
+            self.add_tile(LEVEL_WIDTH, y, 'floor', 0)
+        for x in range(10, 16):
+            self.add_tile(x, 8, 'stone', 0)
+        for x in range(39, 45):
+            self.add_tile(x, 8, 'stone', 0)
+
+    def tiles_around(self, pos):
         tiles = []
         tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))
-        for offset in NEIGHBOR_OFFSETS:
-            check_loc = str(tile_loc[0] + offset[0]) + ';' + str(tile_loc[1] + offset[1])
-            if check_loc in self.tilemap:
-                tiles.append(self.tilemap[check_loc])
+        for dx, dy in NEIGHBOR_OFFSETS:
+            tile = self.tilemap.get(f'{tile_loc[0] + dx};{tile_loc[1] + dy}')
+            if tile is not None:
+                tiles.append(tile)
         return tiles
 
-    def physics_rects_around(self, pos): #create a rectangle object for each of the above tiles to allow for entity interactions
+    def physics_rects_around(self, pos):
         rects = []
         for tile in self.tiles_around(pos):
             if tile['type'] in PHYSICS_TILES:
-                rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size))
+                x, y = tile['pos']
+                rects.append(pygame.Rect(x * self.tile_size, y * self.tile_size,
+                                         self.tile_size, self.tile_size))
         return rects
 
-    def render(self, surf, offset = (0,0)): #render the tiles onto the screen (offgrid tiles render behind on grid tiles)
+    def render(self, surf, offset=(0, 0)):
         for tile in self.offgrid_tiles:
-            surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
-
-        #this next portion only renders the objects that are on screen - reduces lag from tiles rendering off screen          
-        for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
-            for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
-                loc = str(x) + ';' + str(y)
-                if loc in self.tilemap:
-                    tile = self.tilemap[loc]
-                    surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
-               
-        # for loc in self.tilemap:
-        #     tile = self.tilemap[loc]
-        #     surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
-
+            surf.blit(self.game.assets[tile['type']][tile['variant']],
+                      (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
+        for x in range(offset[0] // self.tile_size,
+                       (offset[0] + surf.get_width()) // self.tile_size + 1):
+            for y in range(offset[1] // self.tile_size,
+                           (offset[1] + surf.get_height()) // self.tile_size + 1):
+                tile = self.tilemap.get(f'{x};{y}')
+                if tile:
+                    surf.blit(self.game.assets[tile['type']][tile['variant']],
+                              (x * self.tile_size - offset[0],
+                               y * self.tile_size - offset[1]))
