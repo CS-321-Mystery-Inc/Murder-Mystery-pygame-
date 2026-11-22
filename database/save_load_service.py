@@ -18,6 +18,7 @@ class SaveLoadService:
             raise ValueError("Only one or two players are supported")
         self.player_count = player_count
         database.initialize_database()
+        self.loaded_level_state = {}
 
     """Check a snapshot before saving or restoring database records."""
     def _validate(self, data):
@@ -41,6 +42,12 @@ class SaveLoadService:
                         not math.isfinite(value) for value in position)):
                 raise ValueError("Player position must contain two numbers")
 
+        level_state = data.get("level_state", {})
+        if (not isinstance(level_state, dict) or
+                any(not isinstance(key, str) or type(value) is not bool
+                    for key, value in level_state.items())):
+            raise ValueError("Invalid level state")
+
         evidence = data.get("evidence")
         if not isinstance(evidence, list):
             raise ValueError("Missing evidence data")
@@ -57,12 +64,13 @@ class SaveLoadService:
             seen_ids.add(row[0])
 
     """Store both positions and a copy of the existing evidence rows."""
-    def save_game(self, positions):
+    def save_game(self, positions, level_state=None):
         snapshot = {
             "version": 1,
             "player_count": self.player_count,
             "positions": positions,
             "evidence": [list(row) for row in database.get_evidence()],
+            "level_state": level_state if level_state is not None else {},
         }
         self._validate(snapshot)
         database.update_game_state(self.SAVE_KEY, json.dumps(snapshot))
@@ -80,4 +88,6 @@ class SaveLoadService:
         self._validate(snapshot)
         # Only change the evidence table after the entire snapshot is valid.
         database.replace_evidence(snapshot["evidence"])
+        # Older saves have no level_state and safely default to an unflipped lever.
+        self.loaded_level_state = snapshot.get("level_state", {})
         return snapshot["positions"]

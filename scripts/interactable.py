@@ -1,5 +1,5 @@
 import pygame
-from scripts.utils import Animation
+
 
 class Interactable(pygame.sprite.Sprite):
     def __init__(self, game, pos, size, item_type):
@@ -8,16 +8,16 @@ class Interactable(pygame.sprite.Sprite):
         self.pos = list(pos)
         self.size = size
         self.type = item_type
-
-        self.rect = pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
+        self.rect = pygame.Rect(self.pos[0], self.pos[1], *self.size)
         self.action = 'idle'
-        self.image = pygame.Surface(self.size)
+        self.image = pygame.Surface(self.size, pygame.SRCALPHA)
         self.animation = None
 
     def set_action(self, action):
         if action != self.action or self.animation is None:
             self.action = action
-            self.animation = self.game.assets[f"{self.type}/{self.action}"].copy()
+            self.animation = self.game.assets[f'{self.type}/{self.action}'].copy()
+            self.image = self.animation.img()
 
     def update(self):
         if self.animation:
@@ -25,10 +25,11 @@ class Interactable(pygame.sprite.Sprite):
             self.image = self.animation.img()
 
     def interact(self, entity):
-        pass
+        return False
+
 
 class Door(Interactable):
-    def __init__(self, game, pos, size = (64,128)):
+    def __init__(self, game, pos, size=(64, 128)):
         super().__init__(game, pos, size, 'door')
         self.is_open = False
         self.set_action('idle')
@@ -41,9 +42,8 @@ class Door(Interactable):
         return False
 
     def get_solid_rect(self):
-        if not self.is_open:
-            return self.rect
-        return None
+        return None if self.is_open else self.rect
+
 
 class Switch(Interactable):
     def __init__(self, game, pos, linked_wall, size=(32, 64)):
@@ -52,35 +52,45 @@ class Switch(Interactable):
         self.is_flipped = False
         self.set_action('idle')
 
-    def interact(self, entity):
-        if entity.form == 'corporeal' and not self.is_flipped:
-            self.is_flipped = True
-            self.set_action('flipped')
-
+    def set_flipped(self, flipped):
+        """Also used when restoring or resetting a saved level."""
+        self.is_flipped = bool(flipped)
+        self.set_action('flipped' if self.is_flipped else 'idle')
         if self.linked_wall:
-            self.linked_wall.open_wall()
-            return True
-        return False
+            if self.is_flipped:
+                self.linked_wall.open_wall()
+            else:
+                self.linked_wall.close_wall()
+
+    def interact(self, entity):
+        # Only the corporeal form can use this once; the astral form cannot.
+        if entity.form != 'corporeal' or self.is_flipped:
+            return False
+        self.set_flipped(True)
+        return True
+
 
 class MovableWall(pygame.sprite.Sprite):
-    def __init__(self, game, pos, size = (64, 192)):
+    def __init__(self, game, pos, size=(64, 192)):
         super().__init__()
         self.game = game
         self.pos = list(pos)
         self.size = size
         self.is_open = False
-
-        self.rect = pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
+        self.rect = pygame.Rect(self.pos[0], self.pos[1], *self.size)
         self.image = pygame.Surface(self.size)
-        self.image.fill((70,70,80))
+        self.image.fill((70, 70, 80))
 
     def open_wall(self):
         self.is_open = True
+        self.image.set_alpha(0)
+
+    def close_wall(self):
+        self.is_open = False
+        self.image.set_alpha(255)
 
     def get_solid_rect(self):
-        if not self.is_open:
-            return self.rect
-        return None
+        return None if self.is_open else self.rect
 
     def update(self):
         pass

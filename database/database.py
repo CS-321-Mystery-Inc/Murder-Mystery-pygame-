@@ -61,3 +61,9 @@ def replace_evidence(rows):
             "VALUES (?, ?, ?, ?)",
             rows,
         )
+
+
+def clear_evidence():
+    """Start a new game with an empty notebook without touching old save slots."""
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("DELETE FROM evidence")
