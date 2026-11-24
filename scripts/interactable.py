@@ -63,10 +63,10 @@ class Switch(Interactable):
                 self.linked_wall.close_wall()
 
     def interact(self, entity):
-        # Only the corporeal form can use this once; the astral form cannot.
-        if entity.form != 'corporeal' or self.is_flipped:
+# Only the corporeal form can use the switch; the astral form cannot.
+        if entity.form != 'corporeal':
             return False
-        self.set_flipped(True)
+        self.set_flipped(not self.is_flipped)
         return True
 
 

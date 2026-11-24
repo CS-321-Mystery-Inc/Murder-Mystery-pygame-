@@ -80,6 +80,7 @@ class Game:
         self.secret_wall = MovableWall(self, (1536, 128), size=(64, 512))
         self.lever = Switch(self, (2200, 576), linked_wall=self.secret_wall)
         self.interactables.add(self.secret_wall, self.lever)
+        self.lever_prompt_dismissed = False
 
         self.clue_catalog = {item['id']: item for item in LEVEL_ONE_ITEMS}
         self.clues = pygame.sprite.Group()
@@ -153,6 +154,7 @@ class Game:
             self.player2.get_rect()
             self.player2.velocity = [0, 0]
         self.lever.set_flipped(False)
+        self.lever_prompt_dismissed = False
         self.spawn_clues()
         self.refresh_collected()
         self.scroll = [self.player.pos[0] - self.screen_width // 2,
@@ -418,7 +420,7 @@ class Game:
                 and self.lever.rect.inflate(110, 50).colliderect(p.get_rect())]
 
     def draw_lever_prompt(self, render_scroll):
-        if self.lever.is_flipped or not self.nearby_corporeal_players():
+        if getattr(self, 'lever_prompt_dismissed', False) or not self.nearby_corporeal_players():
             return
         text = 'Press E to pull lever'
         surface = self.hint_font.render(text, True, (255, 248, 220))
@@ -534,6 +536,7 @@ class Game:
                     self.collect_near_players()
                     for p in self.nearby_corporeal_players():
                         if self.lever.interact(p):
+                            self.lever_prompt_dismissed = True
                             print('Lever pulled. Passage opened!')
                             break
                 elif self.numplayers == 2:
