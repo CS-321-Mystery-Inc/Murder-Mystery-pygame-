@@ -55,6 +55,7 @@ class Game:
             'switch/flipped': Animation(load_images('entities/lever/flipped'), img_dur=6),
         }
         self.clue_img = load_image('entities/clues/placeholderclue.png')
+        self.key_img = load_image('entities/clues/key.png')
         # The user-provided closed-book icon lives in the standard assets folder.
         # Keep a drawn fallback so teammates can run before notebook.png is added.
         notebook_icon_path = 'data/images/notebook.png'
@@ -82,6 +83,13 @@ class Game:
         self.interactables.add(self.secret_wall, self.lever)
         self.lever_prompt_dismissed = False
 
+        # Drawer past the movable wall (x < 1536) on the y=640 floor
+        self.drawer_img = load_image('entities/drawer.png')
+        drawer_x = 1350
+        drawer_y = 640 - self.drawer_img.get_height()
+        self.drawer_rect = self.drawer_img.get_rect(topleft=(drawer_x, drawer_y))
+        self.drawer_opened = False
+
         self.clue_catalog = {item['id']: item for item in LEVEL_ONE_ITEMS}
         self.clues = pygame.sprite.Group()
         self.collected_clues = []  # legacy list; the database is the source of truth
@@ -107,6 +115,7 @@ class Game:
         # Queue them so collecting multiple items quickly does not skip any text.
         self.collection_notifications = []
         self.collection_notification_started_at = None
+        self.showing_key_notification = False
 
         self.pause_font = pygame.font.SysFont('Arial', 64, bold=True)
         self.menu_font = pygame.font.SysFont('Arial', 40, bold=True)
@@ -121,6 +130,8 @@ class Game:
         """Instantiate the current level's evidence from one editable catalog."""
         self.clues.empty()
         for item in LEVEL_ONE_ITEMS:
+            if item['id'] == 105 and not getattr(self, 'drawer_opened', False):
+                continue
             x = int(item['center_x'] - self.clue_img.get_width() / 2)
             y = int(item['surface_y'] - self.clue_img.get_height())
             self.clues.add(Clue((x, y), self.clue_img, item['name'],
@@ -155,6 +166,7 @@ class Game:
             self.player2.velocity = [0, 0]
         self.lever.set_flipped(False)
         self.lever_prompt_dismissed = False
+        self.drawer_opened = False
         self.spawn_clues()
         self.refresh_collected()
         self.scroll = [self.player.pos[0] - self.screen_width // 2,
@@ -210,7 +222,10 @@ class Game:
         try:
             self.save_load_service.save_game(
                 self.capture_positions(),
-                level_state={'lever_flipped': self.lever.is_flipped},
+                level_state={
+                    'lever_flipped': self.lever.is_flipped,
+                    'drawer_opened': self.drawer_opened,
+                },
             )
             self.pause_status = 'Game saved successfully!'
             print(self.pause_status)
@@ -229,6 +244,7 @@ class Game:
             self.restore_positions(positions)
             state = self.save_load_service.loaded_level_state
             self.lever.set_flipped(state.get('lever_flipped', False))
+            self.drawer_opened = state.get('drawer_opened', False)
             self.spawn_clues()
             self.refresh_collected()
             self.collection_notifications.clear()
@@ -345,6 +361,13 @@ class Game:
         panel_rect = text.get_rect(center=(self.screen_width // 2, 230)).inflate(55, 26)
         fade = min(1.0, max(0.0, (duration - elapsed) / 350))
         panel = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+        if self.showing_key_notification and getattr(self, 'key_img', None) is not None:
+            key_rect = self.key_img.get_rect(
+                midright=(panel_rect.left - 14, panel_rect.centery)
+            )
+            key_copy = self.key_img.copy()
+            key_copy.set_alpha(int(255 * fade))
+            self.display.blit(key_copy, key_rect)
         pygame.draw.rect(panel, (25, 22, 31, int(212 * fade)),
                          panel.get_rect(), border_radius=12)
         pygame.draw.rect(panel, (210, 177, 118, int(225 * fade)),
@@ -418,6 +441,13 @@ class Game:
             candidates.append(self.player2)
         return [p for p in candidates if p.form == 'corporeal'
                 and self.lever.rect.inflate(110, 50).colliderect(p.get_rect())]
+    
+    def nearby_drawer_players(self):
+        candidates = [self.player]
+        if self.numplayers == 2:
+            candidates.append(self.player2)
+        return [p for p in candidates if p.form == 'corporeal'
+                and self.drawer_rect.inflate(90, 50).colliderect(p.get_rect())]
 
     def draw_lever_prompt(self, render_scroll):
         if getattr(self, 'lever_prompt_dismissed', False) or not self.nearby_corporeal_players():
@@ -426,6 +456,20 @@ class Game:
         surface = self.hint_font.render(text, True, (255, 248, 220))
         center_x = self.lever.rect.centerx - render_scroll[0]
         center_y = self.lever.rect.top - render_scroll[1] - 42
+        box = surface.get_rect(center=(center_x, center_y)).inflate(24, 16)
+        box.clamp_ip(pygame.Rect(10, 10, self.screen_width - 20, self.screen_height - 20))
+        panel = pygame.Surface(box.size, pygame.SRCALPHA)
+        panel.fill((30, 25, 20, 230))
+        self.display.blit(panel, box.topleft)
+        self.display.blit(surface, surface.get_rect(center=box.center))
+
+    def draw_drawer_prompt(self, render_scroll):
+        if self.drawer_opened or not self.nearby_drawer_players():
+            return
+        text = 'Press E to open drawer'
+        surface = self.hint_font.render(text, True, (255, 248, 220))
+        center_x = self.drawer_rect.centerx - render_scroll[0]
+        center_y = self.drawer_rect.top - render_scroll[1] - 42
         box = surface.get_rect(center=(center_x, center_y)).inflate(24, 16)
         box.clamp_ip(pygame.Rect(10, 10, self.screen_width - 20, self.screen_height - 20))
         panel = pygame.Surface(box.size, pygame.SRCALPHA)
@@ -534,10 +578,26 @@ class Game:
                     self.player.swap_form()
                 elif event.key == pygame.K_e:
                     self.collect_near_players()
+                    pulled_lever = False
                     for p in self.nearby_corporeal_players():
                         if self.lever.interact(p):
                             self.lever_prompt_dismissed = True
+                            pulled_lever = True
                             print('Lever pulled. Passage opened!')
+                            break
+                    if not pulled_lever and not self.drawer_opened:
+                        for p in self.nearby_drawer_players():
+                            self.drawer_opened = True
+                            player_label = 'Player 1' if p is self.player else 'Player 2'
+                            key_id = 105
+                            key_name = 'Key'
+                            key_desc = 'You found a key inside the drawer.'
+                            try:
+                                db.collect_evidence(key_id, key_name, key_desc, player_label)
+                                self.refresh_collected()
+                                self.collection_notifications.append(f'{key_name} found')
+                            except sqlite3.Error as exc:
+                                print(f'Could not record key: {exc}')
                             break
                 elif self.numplayers == 2:
                     if event.key == pygame.K_a:
@@ -576,6 +636,10 @@ class Game:
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
         self.tilemap.render(self.display, offset=render_scroll)
+        self.display.blit(
+            self.drawer_img,
+            (self.drawer_rect.x - render_scroll[0], self.drawer_rect.y - render_scroll[1]),
+        )
         for clue in self.clues:
             self.display.blit(clue.image, (clue.pos[0] - render_scroll[0],
                                            clue.pos[1] - render_scroll[1]))
@@ -598,6 +662,7 @@ class Game:
 
         if playing:
             self.draw_lever_prompt(render_scroll)
+            self.draw_drawer_prompt(render_scroll)
             self.draw_notebook_hud()
             self.draw_collection_notification()
         if self.in_notebook:
