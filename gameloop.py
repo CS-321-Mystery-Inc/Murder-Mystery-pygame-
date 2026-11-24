@@ -45,7 +45,7 @@ class Game:
             'stone': load_images('tiles/stone'),
             'corporeal_player': load_image('entities/corporeal/corporeal_player.png'),
             'astral_player': load_image('entities/astral/astral_player.png'),
-            'background': load_image('background.png'),
+            'background': load_image('background5.png'),
             'floor': load_images('tiles/floor'),
             'corporeal/idle': Animation(load_images('entities/corporeal/idle'), img_dur=6),
             'corporeal/run': Animation(load_images('entities/corporeal/run'), img_dur=4),
