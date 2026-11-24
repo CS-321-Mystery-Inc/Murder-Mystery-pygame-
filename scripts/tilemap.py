@@ -23,9 +23,6 @@ LEVEL_ONE_ITEMS = (
     {"id": 104, "name": "Coin 4", "item_type": "Coin", "center_x": 800,
      "surface_y": 8 * TILE_SIZE,
      "description": "Four quiet witnesses speak only when gathered. Keep their words close; the notebook never forgets."},
-     {"id": 105, "name": "Key", "item_type": "Key", "center_x": 1350,
-     "surface_y": GROUND_ROW * TILE_SIZE,
-     "description": "You found a key inside a drawer."},
 )
 
 
