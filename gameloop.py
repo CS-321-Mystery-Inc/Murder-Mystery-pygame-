@@ -83,6 +83,13 @@ class Game:
         self.interactables.add(self.secret_wall, self.lever)
         self.lever_prompt_dismissed = False
 
+        # Drawer past the movable wall (x < 1536) on the y=640 floor
+        self.drawer_img = load_image('entities/drawer.png')
+        drawer_x = 1350
+        drawer_y = 640 - self.drawer_img.get_height()
+        self.drawer_rect = self.drawer_img.get_rect(topleft=(drawer_x, drawer_y))
+        self.drawer_opened = False
+
         self.clue_catalog = {item['id']: item for item in LEVEL_ONE_ITEMS}
         self.clues = pygame.sprite.Group()
         self.collected_clues = []  # legacy list; the database is the source of truth
@@ -159,6 +166,7 @@ class Game:
             self.player2.velocity = [0, 0]
         self.lever.set_flipped(False)
         self.lever_prompt_dismissed = False
+        self.drawer_opened = False
         self.spawn_clues()
         self.refresh_collected()
         self.scroll = [self.player.pos[0] - self.screen_width // 2,
@@ -574,6 +582,7 @@ class Game:
                     for p in self.nearby_corporeal_players():
                         if self.lever.interact(p):
                             self.lever_prompt_dismissed = True
+                            pulled_lever = True
                             print('Lever pulled. Passage opened!')
                             break
                     if not pulled_lever and not self.drawer_opened:
