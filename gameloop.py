@@ -191,6 +191,14 @@ class Game:
                 clue.kill()
         self.collected_clues = [row[1] for row in self.evidence_rows]
 
+    def start_new_game(self, player_count):
+        self.numplayers = player_count
+        self.save_load_service = SaveLoadService(player_count)
+        if self.numplayers == 2 and not hasattr(self, 'player2'):
+            self.player2 = PhysicsEntity(self, 'Player2', (2050, 576), (35, 64), 'astral')
+        self.reset_level(clear_evidence=True)
+        self.game_started = True
+
     def reset_level(self, clear_evidence=True):
         # New Game resets coins and lever without deleting the existing save slot.
         if clear_evidence:
@@ -363,24 +371,55 @@ class Game:
 
     def draw_pause_menu(self):
         # Original dark menu style: plain gray text, gold selection, no cards.
-        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        self.display.blit(overlay, (0, 0))
-        self.draw_text('GAME PAUSED', self.pause_font,
-                       (255, 255, 255), self.screen_width // 2,
-                       self.screen_height // 2, True)
-        self.pause_option_rects = []
-        for index, option in enumerate(self.pause_options):
-            display_string = f'> {option} <' if index == self.pause_selection else option
-            color = (255, 190, 0) if index == self.pause_selection else (160, 160, 160)
-            y = self.screen_height // 2 + 50 + index * 60
-            text_rect = self.draw_text(display_string, self.menu_font, color,
-                                       self.screen_width // 2, y, True)
-            self.pause_option_rects.append(text_rect.inflate(48, 18))
-        if self.pause_status:
-            self.draw_text(self.pause_status, self.book_small_font,
-                           (255, 255, 255), self.screen_width // 2,
-                           self.screen_height // 2 + 50 + len(self.pause_options) * 60, True)
+      overlay = pygame.Surface(
+          (self.screen_width, self.screen_height), pygame.SRCALPHA
+      )
+      overlay.fill((0, 0, 0, 150))
+      self.display.blit(overlay, (0, 0))
+      self.draw_text(
+          "GAME PAUSED",
+          self.pause_font,
+          (255, 255, 255),
+          self.screen_width // 2,
+          self.screen_height // 2,
+          True,
+      )
+
+      mouse_pos = self.screen_to_game(pygame.mouse.get_pos())
+      option_rects = []
+      for index, option in enumerate(self.pause_options):
+        y = self.screen_height // 2 + 50 + index * 60
+        # Measure with selection markers so hover boxes match highlighted text
+        sample_rect = self.menu_font.render(
+            f"> {option} <", True, (255, 190, 0)
+        ).get_rect(center=(self.screen_width // 2, y))
+        hit_rect = sample_rect.inflate(48, 18)
+        option_rects.append(hit_rect)
+        if hit_rect.collidepoint(mouse_pos):
+          self.pause_selection = index
+
+      self.pause_option_rects = option_rects
+      for index, option in enumerate(self.pause_options):
+        display_string = (
+            f"> {option} <" if index == self.pause_selection else option
+        )
+        color = (
+            (255, 190, 0) if index == self.pause_selection else (160, 160, 160)
+        )
+        y = self.screen_height // 2 + 50 + index * 60
+        self.draw_text(
+            display_string, self.menu_font, color, self.screen_width // 2, y, True
+        )
+
+      if self.pause_status:
+        self.draw_text(
+            self.pause_status,
+            self.book_small_font,
+            (255, 255, 255),
+            self.screen_width // 2,
+            self.screen_height // 2 + 50 + len(self.pause_options) * 60,
+            True,
+        )
                            
     def draw_collection_notification(self):
         # Shows each newly collected clue's name for about 2.5 seconds.
@@ -530,14 +569,18 @@ class Game:
         self.freeze_game()
 
     def activate_pause_option(self, index):
-        if index == 0:
+        option = self.pause_options[index]
+        if option == "RESUME GAME":
             self.paused = False
-            self.freeze_game()
-        elif index == 1:
+            self.pause_status = ""
+        elif option == "SAVE GAME":
             self.save_game()
-        elif index == 2:
-            self.load_game()
-        elif index == 3:
+        elif option == "LOAD GAME":
+            if self.load_game():
+                self.paused = False
+                self.pause_status = ""
+                self.freeze_game()
+        elif option == "QUIT GAME":
             pygame.quit()
             sys.exit()
 
@@ -549,6 +592,9 @@ class Game:
                 pygame.quit()
                 sys.exit()
             if not self.game_started:
+                action = self.main_menu.handle_event(event)
+                if action and action[0] == 'start':
+                    self.start_new_game(action[1])
                 continue
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -713,17 +759,23 @@ class Game:
                 if self.menu_status:
                     status = self.menu_font.render(self.menu_status, True, (255, 255, 255))
                     self.screen.blit(status, status.get_rect(center=(960, 925)))
-                if action == 'newgame':
-                    self.reset_level(clear_evidence=True)
-                    self.game_started = True
+                if isinstance(action, tuple) and action[0] == 'start':
+                    self.start_new_game(action[1])
                     self.menu_status = ''
-                    if pencil: pencil.play()
+                    if pencil:
+                        pencil.play()
+                elif action == 'newgame':
+                    self.start_new_game(1)
+                    self.menu_status = ''
+                    if pencil:
+                        pencil.play()
                 elif action == 'resume':
                     if self.load_game():
                         self.game_started = True
                         self.paused = False
                         self.menu_status = ''
-                        if pencil: pencil.play()
+                        if pencil:
+                            pencil.play()
                     else:
                         self.menu_status = self.pause_status
                 elif action == 'quit':
@@ -740,13 +792,4 @@ class Game:
 
 
 if __name__ == '__main__':
-    try:
-        user_input = int(input('Select number of players (1 or 2): '))
-    except ValueError:
-        user_input = 0
-    while user_input not in (1, 2):
-        try:
-            user_input = int(input('Invalid input. Select number of players (1 or 2): '))
-        except ValueError:
-            user_input = 0
-    Game(user_input).run()
+    Game().run()
