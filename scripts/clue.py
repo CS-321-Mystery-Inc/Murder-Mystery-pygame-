@@ -5,7 +5,7 @@ class Clue(pygame.sprite.Sprite):
     """Collectible placeholder sprite; metadata can represent any evidence type."""
 
     def __init__(self, pos, image, item_name, evidence_id=None,
-                 item_type="Coin", description=""):
+                 item_type="Clue", description=""):
         super().__init__()
         self.image = image
         self.pos = list(pos)
