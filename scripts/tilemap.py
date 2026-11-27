@@ -25,7 +25,10 @@ LEVEL_ONE_ITEMS = (
      "description": "A decorative clasp in the shape of a gem. Handle with care."},
     {"id": 105, "name": "Justice Tarot Card", "item_type": "Clue", "center_x": 1500,
      "surface_y": GROUND_ROW * TILE_SIZE,
-     "description": "'Truth, Fairness, Karmic Balance, Accountable Decisions' [4]."}
+     "description": "'Truth, Fairness, Karmic Balance, Accountable Decisions' [4]."},
+    {"id": 106, "name": "Key", "item_type": "Key", "center_x": 275,
+     "surface_y": GROUND_ROW * TILE_SIZE,
+     "description": "Used to open locked doors."}
 )
 
 LEVEL_TWO_ITEMS = (
@@ -43,7 +46,10 @@ LEVEL_TWO_ITEMS = (
      "description": "Made with an animal friend in mind."},
     {"id": 105, "name": "Emperor Tarot Card", "item_type": "Clue", "center_x": 1500,
      "surface_y": GROUND_ROW * TILE_SIZE,
-     "description": "'Structure, Divine Order, Stability, Protective Authority' [3]."}
+     "description": "'Structure, Divine Order, Stability, Protective Authority' [3]."},
+     {"id": 106, "name": "Key", "item_type": "Key", "center_x": 275,
+        "surface_y": GROUND_ROW * TILE_SIZE,
+        "description": "Used to open locked doors."}
 )
 
 class Tilemap:
