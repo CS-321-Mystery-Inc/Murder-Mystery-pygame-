@@ -11,19 +11,19 @@ TILE_SIZE = 64
 # The passage at x=1536 is blocked by a separate movable wall until the lever
 # at x=2200 is flipped. Platforms are one jump above the main floor.
 LEVEL_ONE_ITEMS = (
-    {"id": 101, "name": "Coin 1", "item_type": "Coin", "center_x": 1870,
+    {"id": 101, "name": "Enchanted Parchment", "item_type": "Clue", "center_x": 1870,
      "surface_y": GROUND_ROW * TILE_SIZE,
-     "description": "The stone remembers what it guards. Look east for an iron tongue; only a living hand can wake it."},
-    {"id": 102, "name": "Coin 2", "item_type": "Coin", "center_x": 2680,
+     "description": "Torn hastily from a book. The letters spell 'Abra'."},
+    {"id": 102, "name": "Enchanted Parchment", "item_type": "Clue", "center_x": 2680,
      "surface_y": 8 * TILE_SIZE,
-     "description": "Above the right-hand path, the second mark waits. When iron yields, follow the passage toward the setting sun."},
-    {"id": 103, "name": "Coin 3", "item_type": "Coin", "center_x": 1210,
+     "description": "Torn hastily from a book. The letters spell 'Kadabra'."},
+    {"id": 103, "name": "Dagger", "item_type": "Clue", "center_x": 1210,
      "surface_y": GROUND_ROW * TILE_SIZE,
-     "description": "The opened wall hid no answer, only a road. Seek the higher stones farther west for the final whisper."},
-    {"id": 104, "name": "Coin 4", "item_type": "Coin", "center_x": 800,
+     "description": "Dulled with time, but still useful."},
+    {"id": 104, "name": "Broken Brooch", "item_type": "Clue", "center_x": 800,
      "surface_y": 8 * TILE_SIZE,
-     "description": "Four quiet witnesses speak only when gathered. Keep their words close; the notebook never forgets."},
-     {"id": 105, "name": "Key", "item_type": "Key", "center_x": 1350,
+     "description": "A key used to open locked doors."},
+     {"id": 106, "name": "Key", "item_type": "Key", "center_x": 1350,
      "surface_y": GROUND_ROW * TILE_SIZE,
      "description": "You found a key inside a drawer."},
 )
