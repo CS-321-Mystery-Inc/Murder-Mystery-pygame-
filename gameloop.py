@@ -1,4 +1,5 @@
-"""Psychic Detective - Level 1, bottom-center notebook HUD, and save/load.
+"""
+Psychic Detective - Level 1, bottom-center notebook HUD, and save/load.
 
 Place at the project root alongside scripts/, menus/, and database/.
 The closed-book HUD icon is loaded from data/images/notebook.png when present.
@@ -12,7 +13,7 @@ import pygame
 
 from scripts.utils import load_image, load_images, Animation
 from scripts.entities import PhysicsEntity
-from scripts.tilemap import Tilemap, LEVEL_ONE_ITEMS
+from scripts.tilemap import Tilemap, LEVEL_ONE_ITEMS, LEVEL_TWO_ITEMS
 from scripts.interactable import Switch, MovableWall
 from scripts.clue import Clue
 from menus.mainmenu import MainMenu
@@ -37,7 +38,7 @@ class Game:
         self.movement1 = [False, False]
         self.movement2 = [False, False]
 
-        # Reuse the team's existing art until final level assets are available.
+        # Stores assets used in-game.
         self.assets = {
             'decor': load_images('tiles/decor'),
             'grass': load_images('tiles/grass'),
@@ -47,6 +48,13 @@ class Game:
             'astral_player': load_image('entities/astral/astral_player.png'),
             'background': load_image('background5.png'),
             'floor': load_images('tiles/floor'),
+            'enchanted_parchment': pygame.transform.scale_by(load_image('entities/clues/enchanted_parchment.png'), 0.5),
+            'dagger': pygame.transform.scale_by(load_image('entities/clues/dagger.png'), 0.5),
+            'broken_brooch': pygame.transform.scale_by(load_image('entities/clues/broken_brooch.png'), 0.5),
+            'justice_tarot_card': pygame.transform.scale_by(load_image('entities/clues/justice_tarot_card.png'), 0.5),
+            'embroidery_scissors': pygame.transform.scale_by(load_image('entities/clues/embroidery_scissors.png'), 0.5),
+            'small_sweater': pygame.transform.scale_by(load_image('entities/clues/small_sweater.png'), 0.5),
+            'emperor_tarot_card': pygame.transform.scale_by(load_image('entities/clues/emperor_tarot_card.png'), 0.5),
             'corporeal/idle': Animation(load_images('entities/corporeal/idle'), img_dur=6),
             'corporeal/run': Animation(load_images('entities/corporeal/run'), img_dur=4),
             'astral/idle': Animation(load_images('entities/astral/idle'), img_dur=6),
@@ -54,9 +62,8 @@ class Game:
             'switch/idle': Animation(load_images('entities/lever/idle'), img_dur=6),
             'switch/flipped': Animation(load_images('entities/lever/flipped'), img_dur=6),
         }
-        self.clue_img = load_image('entities/clues/placeholderclue.png')
+
         # The user-provided closed-book icon lives in the standard assets folder.
-        # Keep a drawn fallback so teammates can run before notebook.png is added.
         notebook_icon_path = 'data/images/notebook.png'
         self.notebook_icon = (load_image('notebook.png')
                               if os.path.isfile(notebook_icon_path) else None)
@@ -76,6 +83,7 @@ class Game:
                        self.player.pos[1] - self.screen_height // 2]
 
         self.interactables = pygame.sprite.Group()
+
         # Solid barrier between the ceiling (y=128) and ground (y=640).
         self.secret_wall = MovableWall(self, (1536, 128), size=(64, 512))
         self.lever = Switch(self, (2200, 576), linked_wall=self.secret_wall)
@@ -84,25 +92,28 @@ class Game:
 
         self.clue_catalog = {item['id']: item for item in LEVEL_ONE_ITEMS}
         self.clues = pygame.sprite.Group()
-        self.collected_clues = []  # legacy list; the database is the source of truth
+        self.collected_clues = []  # Legacy list; the database is the source of truth
         self.spawn_clues()
         self.refresh_collected()
 
         self.paused = False
         self.in_notebook = False
+
         # Esc still brings up the original-style dark pause menu. The notebook
         # is accessible directly from the bottom-center in-game inventory slot.
         self.pause_options = ['RESUME GAME', 'SAVE GAME', 'LOAD GAME', 'QUIT GAME']
         self.pause_selection = 0
         self.pause_status = ''
         self.pause_option_rects = []
-        # Leave the notebook high enough to be fully visible in a 1920x1080 window.
+
+        # Leaves the notebook high enough to be fully visible in a 1920x1080 window.
         self.notebook_hud_rect = pygame.Rect(self.screen_width // 2 - 50,
                                              self.screen_height - 270, 100, 100)
         self.notebook_close_rect = pygame.Rect(1440, 153, 100, 54)
         self.notebook_type_rects = {}
         self.notebook_item_rects = {}
         self.notebook_selected_item = None
+
         # Evidence pickup notifications appear briefly over gameplay.
         # Queue them so collecting multiple items quickly does not skip any text.
         self.collection_notifications = []
@@ -118,17 +129,38 @@ class Game:
     # ----- Level items and persistence -----
 
     def spawn_clues(self):
-        """Instantiate the current level's evidence from one editable catalog."""
+        # Instantiates the current level's evidence from one editable catalog.
         self.clues.empty()
-        for item in LEVEL_ONE_ITEMS:
-            x = int(item['center_x'] - self.clue_img.get_width() / 2)
-            y = int(item['surface_y'] - self.clue_img.get_height())
-            self.clues.add(Clue((x, y), self.clue_img, item['name'],
-                                evidence_id=item['id'], item_type=item['item_type'],
-                                description=item['description']))
+
+        # Level 1
+        for i in range(len(LEVEL_ONE_ITEMS)):
+            if (i == 0 or i == 1): # Enchanted Parchments
+                x = int(LEVEL_ONE_ITEMS[i]['center_x'] - self.assets['enchanted_parchment'].get_width() / 2)
+                y = int(LEVEL_ONE_ITEMS[i]['surface_y'] - self.assets['enchanted_parchment'].get_height())
+                self.clues.add(Clue((x, y), self.assets['enchanted_parchment'], LEVEL_ONE_ITEMS[i]['name'],
+                    evidence_id=LEVEL_ONE_ITEMS[i]['id'], item_type=LEVEL_ONE_ITEMS[i]['item_type'],
+                    description=LEVEL_ONE_ITEMS[i]['description']))
+            elif (i == 2): # Dagger
+                x = int(LEVEL_ONE_ITEMS[i]['center_x'] - self.assets['dagger'].get_width() / 2)
+                y = int(LEVEL_ONE_ITEMS[i]['surface_y'] - self.assets['dagger'].get_height())
+                self.clues.add(Clue((x, y), self.assets['dagger'], LEVEL_ONE_ITEMS[i]['name'],
+                    evidence_id=LEVEL_ONE_ITEMS[i]['id'], item_type=LEVEL_ONE_ITEMS[i]['item_type'],
+                    description=LEVEL_ONE_ITEMS[i]['description']))
+            elif (i == 3): # Broken Brooch
+                x = int(LEVEL_ONE_ITEMS[i]['center_x'] - self.assets['broken_brooch'].get_width() / 2)
+                y = int(LEVEL_ONE_ITEMS[i]['surface_y'] - self.assets['broken_brooch'].get_height())
+                self.clues.add(Clue((x, y), self.assets['broken_brooch'], LEVEL_ONE_ITEMS[i]['name'],
+                    evidence_id=LEVEL_ONE_ITEMS[i]['id'], item_type=LEVEL_ONE_ITEMS[i]['item_type'],
+                    description=LEVEL_ONE_ITEMS[i]['description']))
+            elif (i == 4): # Justice Tarot Card
+                x = int(LEVEL_ONE_ITEMS[i]['center_x'] - self.assets['justice_tarot_card'].get_width() / 2)
+                y = int(LEVEL_ONE_ITEMS[i]['surface_y'] - self.assets['justice_tarot_card'].get_height())
+                self.clues.add(Clue((x, y), self.assets['justice_tarot_card'], LEVEL_ONE_ITEMS[i]['name'],
+                    evidence_id=LEVEL_ONE_ITEMS[i]['id'], item_type=LEVEL_ONE_ITEMS[i]['item_type'],
+                    description=LEVEL_ONE_ITEMS[i]['description']))
 
     def refresh_collected(self):
-        """Keep notebook and visible pickups consistent with database evidence."""
+        # Keeps notebook and visible pickups consistent with database evidence.
         self.evidence_rows = db.get_evidence()
         collected_ids = {row[0] for row in self.evidence_rows}
         for clue in list(self.clues):
@@ -137,7 +169,7 @@ class Game:
         self.collected_clues = [row[1] for row in self.evidence_rows]
 
     def reset_level(self, clear_evidence=True):
-        """New Game resets coins and lever, without deleting the existing save slot."""
+        # New Game resets coins and lever without deleting the existing save slot.
         if clear_evidence:
             db.clear_evidence()
         self.player.pos = [2000, 576]
@@ -168,7 +200,7 @@ class Game:
         self.collection_notification_started_at = None
 
     def collect_clue(self, clue, player_label):
-        """Persist first, then remove the object from the level."""
+        # Persists first, then removes the object from the level.
         if clue not in self.clues:
             return False
         try:
@@ -257,7 +289,7 @@ class Game:
         return rect
 
     def draw_wrapped(self, text, font, color, x, y, max_width, line_height=42):
-        """Render descriptions without relying on hard-coded line breaks."""
+        # Renders descriptions without relying on hard-coded line breaks.
         words = text.split()
         line = ''
         for word in words:
@@ -274,7 +306,7 @@ class Game:
         return y
 
     def draw_notebook_hud(self):
-        """Always-owned inventory slot; clicking it pauses play and opens the book."""
+        # Always-owned inventory slot; clicking it pauses play and opens the book.
         rect = self.notebook_hud_rect
         hovered = rect.collidepoint(self.screen_to_game(pygame.mouse.get_pos()))
         shadow = rect.move(0, 4)
@@ -303,7 +335,7 @@ class Game:
             self.display.blit(tooltip, tip_rect)
 
     def draw_pause_menu(self):
-        """Original dark menu style: plain gray text, gold selection, no cards."""
+        # Original dark menu style: plain gray text, gold selection, no cards.
         overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         self.display.blit(overlay, (0, 0))
@@ -322,9 +354,9 @@ class Game:
             self.draw_text(self.pause_status, self.book_small_font,
                            (255, 255, 255), self.screen_width // 2,
                            self.screen_height // 2 + 50 + len(self.pause_options) * 60, True)
-
+                           
     def draw_collection_notification(self):
-        """Show each newly collected clue's name for about 2.5 seconds."""
+        # Shows each newly collected clue's name for about 2.5 seconds.
         if not self.collection_notifications:
             return
         now = pygame.time.get_ticks()
@@ -360,7 +392,7 @@ class Game:
         if self.notebook_art is not None:
             self.display.blit(self.notebook_art, (315, -90))
 
-        # Retain the two-page paper notebook design from the prior version.
+        # Retains the two-page paper notebook design from the prior version.
         pygame.draw.rect(self.display, (111, 70, 39), (341, 103, 1238, 858), border_radius=16)
         pygame.draw.rect(self.display, (244, 234, 206), (370, 135, 573, 790), border_radius=9)
         pygame.draw.rect(self.display, (250, 242, 220), (962, 135, 580, 790), border_radius=9)
@@ -377,7 +409,7 @@ class Game:
 
         self.notebook_type_rects = {}  # Kept empty for compatibility with mouse handling.
         self.notebook_item_rects = {}
-        # Show only clues belonging to the current level. Older database rows
+        # Shows only clues belonging to the current level. Older database rows
         # (such as example evidence) must not introduce an "Other Evidence" tab.
         visible_rows = [row for row in self.evidence_rows if row[0] in self.clue_catalog]
         # Newly started notebooks stay genuinely blank until something is found.
@@ -407,7 +439,7 @@ class Game:
                           1015, 485, 460)
 
     def screen_to_game(self, pos):
-        """Map mouse coordinates to 1920x1080 game coordinates if scaled."""
+        # Maps mouse coordinates to 1920x1080 game coordinates if scaled.
         width, height = self.screen.get_size()
         return (int(pos[0] * self.screen_width / width),
                 int(pos[1] * self.screen_height / height))
@@ -435,9 +467,9 @@ class Game:
 
     def open_notebook(self):
         self.in_notebook = True
-        self.paused = True  # both flags ensure NO world updates while reading
+        self.paused = True  # Both flags ensure NO world updates while reading.
         self.freeze_game()
-        # If a clue was found, show its contents immediately on opening.
+        # Shows a clue's contents immediately on opening if found.
         current_level_rows = [row for row in self.evidence_rows
                               if row[0] in self.clue_catalog]
         self.notebook_selected_item = (current_level_rows[0][0]
@@ -445,7 +477,7 @@ class Game:
 
     def close_notebook(self):
         self.in_notebook = False
-        self.paused = False  # return straight to gameplay; no Esc/pause detour
+        self.paused = False  # Returns straight to gameplay; no Esc/pause detour.
         self.freeze_game()
 
     def activate_pause_option(self, index):
@@ -510,7 +542,7 @@ class Game:
                         self.pause_status = ''
                     continue
                 if self.in_notebook:
-                    continue  # never move, jump, dash or interact while reading
+                    continue  # Never move, jump, dash or interact while reading.
                 if self.paused:
                     if event.key == pygame.K_UP:
                         self.pause_selection = (self.pause_selection - 1) % len(self.pause_options)
@@ -606,8 +638,8 @@ class Game:
             self.draw_pause_menu()
 
     def run(self):
-        # Keep the team's audio where available; menu and game remain usable
-        # if the optional sound files are not installed on a teammate's machine.
+        # Keeps the team's audio where available; menu and game remain usable.
+        # If the optional sound files are not installed on a teammate's machine.
         intro = pencil = None
         try:
             intro = pygame.mixer.Sound('data/audio/intro.mp3')
